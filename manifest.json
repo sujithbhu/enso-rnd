@@ -32,6 +32,10 @@
       "function_name": "claims_post_calibration",
       "function_file_path": "claims_post_calibration.py",
       "function_config_path": "function_config/claims_post_calibration.json"
+    },
+    {
+      "function_name": "construct_ensemble_inp",
+      "function_file_path": "construct_ensemble_inp.py"
     }
   ]
 }
