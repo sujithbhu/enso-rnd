@@ -61,6 +61,14 @@ class Util:
             doc_id = None
         return doc_id
 
+    @staticmethod
+    def get_anomaly_and_small_cluster_df(run_df):
+        label_counts = run_df['clustering_prediction'].value_counts()
+        label_counts = label_counts[label_counts.index != -1]
+        max_cluster = int(label_counts.idxmax())
+        filtered_df = run_df[run_df['clustering_prediction'] != max_cluster]
+        return filtered_df
+
 
 def train(datasets, config):
     dataset = DatasetConvertor.convert(datasets, DatasetFormat.DATA_FRAME, None)
@@ -74,7 +82,10 @@ def run(datasets, config):
     doc_id = Util.get_doc_id(solution_id, dag_execution_id) if dag_execution_id else config["context"]["doc_id"]
 
     dataset = DatasetConvertor.convert(datasets, DatasetFormat.DATA_FRAME, None)
-    run_df = dataset["value"]
+    df = dataset["value"]
+
+    run_df = Util.get_anomaly_and_small_cluster_df(df) if 'clustering_prediction' in df.columns else df
+
 
     column_to_sep = IDENTIFIER_FEATURES + OTHER_NON_REQUIRED_FEATURES if all(
         col in run_df.columns for col in OTHER_NON_REQUIRED_FEATURES) else IDENTIFIER_FEATURES
@@ -89,8 +100,16 @@ def run(datasets, config):
     run_df["GMM_PREDICTION"] = predictions
     run_df["GMM_DECISION_FUNCTION"] = decision_function
     run_df = pd.concat([df_identifier, run_df], axis=1)
+    columns_to_keep = IDENTIFIER_FEATURES + ['GMM_PREDICTION', 'GMM_DECISION_FUNCTION']
+    run_df = run_df[columns_to_keep]
+
+    # merge model output in main dataframe
+    merged_df = pd.merge(df, run_df, on=IDENTIFIER_FEATURES, how='left')
+    merged_df['GMM_PREDICTION'].fillna(1, inplace=True)
+    merged_df['GMM_DECISION_FUNCTION'].fillna(np.nan, inplace=True)
+
     local_file_path = f"/tmp/gmm.csv"
-    run_df.to_csv(local_file_path, index=False)
+    merged_df.to_csv(local_file_path, index=False)
     doc_id = doc_id if doc_id else "train"
     minio_path = Util.upload_to_minio(solution_id, local_file_path, doc_id=doc_id)
     result_df = pd.DataFrame(data=predictions, columns=['gaussian_mixture_model'])

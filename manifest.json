@@ -36,6 +36,10 @@
     {
       "function_name": "construct_ensemble_inp",
       "function_file_path": "construct_ensemble_inp.py"
+    },
+    {
+      "function_name": "merge_intersection",
+      "function_file_path": "merge_intersection.py"
     }
   ]
 }
